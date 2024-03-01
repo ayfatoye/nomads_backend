@@ -1,91 +1,82 @@
-from flask import Blueprint, jsonify
+# from flask import Blueprint, jsonify
 
-client_bp = Blueprint('client_bp', __name__)
+# client_bp = Blueprint('client_bp', __name__)
 
-'''
-draft for how I will approach designing the backend:
+# @client_bp.route('/create', methods=['POST'])
+# def client_profile():
+#     # Imagine fetching client profile information here
+#     print("mina-bugger: Client profile data created")
+#     return jsonify({"message": "Client profile data"})
 
-# models/Client.py
+from flask import Flask, request, jsonify, abort
+from flask_sqlalchemy import SQLAlchemy
+from models import db, Client, HairProfile, ClientInterest, ClientAddress 
 
-class Client:
-    def __init__(self, client_id, profile_id, address_id, first_name, last_name, ethnicity, stylist_should_know):
-        self.client_id = client_id
-        self.profile_id = profile_id
-        self.address_id = address_id
-        self.first_name = first_name
-        self.last_name = last_name
-        self.ethnicity = ethnicity
-        self.stylist_should_know = stylist_should_know
+app = Flask(__name__)
+# I need to configure our Flask app to connect to the database, e.g.:
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://...'
 
-    def __repr__(self):
-        return f"<Client {self.first_name} {self.last_name}>"
+db.init_app(app)
 
+@app.route('/client', methods=['POST'])
+def create_client():
+    data = request.get_json()
 
-from flask import Blueprint, request, jsonify
-from models import db, Client, Address, HairProfile, ClientInterest  # Assuming models are defined elsewhere
-
-client_bp = Blueprint('client_bp', __name__)
-
-@client_bp.route('/create', methods=['POST'])
-def client_profile():
-    data = request.get_json()  # Parse JSON data from request
-
-    # Create Address entry
-    address = Address(
-        street=data['address']['street'],
-        city=data['address']['city'],
-        state=data['address']['state'],
-        zip_code=data['address']['zip_code'],
-        country=data['address']['country'],
-        comfort_radius=data['address']['comfort_radius'],
-        longitude=data['address']['longitude'],
-        latitude=data['address']['latitude']
-    )
-    db.session.add(address)
-    db.session.commit()
-
-    # Create HairProfile entry
-    hair_profile = HairProfile(
-        thickness=data['hair_profile']['thickness'],
-        hair_type=data['hair_profile']['hair_type'],
-        hair_gender=data['hair_profile']['hair_gender'],
-        color_hist=data['hair_profile']['color_hist'],
-        color_level=data['hair_profile']['color_level']
-    )
+    # I'm creating and inserting instances of HairProfile, ClientAddress, and ClientInterest
+    hair_profile = create_hair_profile(data['hair_profile'])
+    client_address = create_client_address(data['address'])
     db.session.add(hair_profile)
-    db.session.commit()
+    db.session.add(client_address)
+    db.session.flush()
 
-    # Create Client entry
+    # Creating and inserting interests
+    interests_ids = []
+    for interest in data['interests']:
+        client_interest = ClientInterest(hair_id=hair_profile.id, interest=interest)
+        db.session.add(client_interest)
+        interests_ids.append(client_interest.id)
+    
+    # Type shit. Now I'll create the Client instance with foreign keys from HairProfile and ClientAddress
     client = Client(
-        first_name=data['first_name'],
-        last_name=data['last_name'],
-        profile_id=data['profile_id'],
-        address_id=address.id,  # Use the generated ID from the address entry
+        hair_id=hair_profile.id,
+        address_id=client_address.id,
+        fname=data['fname'],
+        lname=data['lname'],
         ethnicity=data['ethnicity'],
         stylist_should_know=data['stylist_should_know']
     )
     db.session.add(client)
-    db.session.commit()
 
-    # Create ClientInterest entries
-    for interest_id in data['interests']:
-        client_interest = ClientInterest(
-            hair_id=hair_profile.hair_id,  # Use the generated hair_id from the hair_profile entry
-            interest=interest_id
-        )
-        db.session.add(client_interest)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=str(e))
 
-    db.session.commit()
+    return jsonify(client_id=client.id, hair_profile_id=hair_profile.id, client_address_id=client_address.id, client_interest_ids=interests_ids), 201
 
-    print("mina-bugger: Client profile data created")
-    return jsonify({"message": "Client profile data"})
+def create_hair_profile(hair_data):
+    hair_profile = HairProfile(
+        thickness=hair_data['thickness'],
+        hair_type=hair_data['hair_type'],
+        hair_gender=hair_data['hair_gender'],
+        color_level=hair_data['color_level'],
+        color_hist=hair_data['color_hist']
+    )
+    return hair_profile
 
+def create_client_address(address_data):
+    client_address = ClientAddress(
+        street=address_data['street'],
+        city=address_data['city'],
+        state=address_data['state'],
+        zip_code=address_data['zip_code'],
+        country=address_data['country'],
+        comfort_radius=address_data['comfort_radius'],
+        longitude=address_data['longitude'],
+        latitude=address_data['latitude']
+    )
+    return client_address
 
-
-'''
-
-@client_bp.route('/create', methods=['POST'])
-def client_profile():
-    # Imagine fetching client profile information here
-    print("mina-bugger: Client profile data created")
-    return jsonify({"message": "Client profile data"})
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 class Client(db.Model):
+    __tablename__ = 'CLIENT_TABLE'
+
     id = db.Column(db.BigInteger, primary_key=True)  
     hair_id = db.Column(db.BigInteger, db.ForeignKey('hair.id'))  
     address_id = db.Column(db.BigInteger, db.ForeignKey('address.id'))  
