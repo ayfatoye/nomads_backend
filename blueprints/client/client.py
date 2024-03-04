@@ -31,8 +31,8 @@ from flask import Blueprint, jsonify, request, abort
 from extensions import db  # Import the shared db instance
 from models import Client, HairProfile, ClientInterest, ClientAddress
 
-client_bp = Blueprint('client_bp', __name__)
-
+# client_bp = Blueprint('client_bp', __name__)
+from . import client_bp
 
 @client_bp.route('/create', methods=['POST'])
 def client_profile():
@@ -45,6 +45,7 @@ def client_profile():
 
 
     # I'm creating and inserting instances of HairProfile, ClientAddress, and ClientInterest
+    print(data['hair_profile'])
     hair_profile = create_hair_profile(data['hair_profile'])
     client_address = create_client_address(data['address'])
     db.session.add(hair_profile)
@@ -53,6 +54,7 @@ def client_profile():
 
     # Creating and inserting interests
     interests_ids = []
+    print(Fore.RED + "we got this far" + Fore.RESET)
     for interest in data['interests']:
         client_interest = ClientInterest(hair_id=hair_profile.id, interest=interest)
         db.session.add(client_interest)
@@ -65,7 +67,7 @@ def client_profile():
         fname=data['fname'],
         lname=data['lname'],
         ethnicity=data['ethnicity'],
-        stylist_should_know=data['stylist_should_know']
+        stylists_should_know=data['stylists_should_know']
     )
     db.session.add(client)
 

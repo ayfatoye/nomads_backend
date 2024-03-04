@@ -24,13 +24,13 @@
     # app.run(debug=True)
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+from blueprints.client import client_bp
 import os
 
-load_dotenv()
+from extensions import db
 
-db = SQLAlchemy()
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -40,30 +40,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 
 db.init_app(app)
 
-class TestTable(db.Model):
-    __tablename__ = 'test_table'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    message = db.Column(db.Text, nullable=True)
-
-    def __init__(self, message):
-        self.message = message
-
-# Function to add an entry to test_table
-def add_test_table_entry(message):
-    # Create an instance of TestTable
-    new_entry = TestTable(message=message)
-    
-    # Add the new entry to the session and commit it
-    db.session.add(new_entry)
-    db.session.commit()
+app.register_blueprint(client_bp)
 
 # Add this part to run only if this is the main module
 if __name__ == '__main__':
     # Create tables
     with app.app_context():
         db.create_all()
-        add_test_table_entry('Hello, this is a test message!')
+        # add_test_table_entry('Hello, this is a test message!')\
+        app.run(debug=True)
 
 
 
