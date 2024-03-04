@@ -1,6 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
+from extensions import db
 
 class ClientInterest(db.Model):
     __tablename__ = 'CLIENT_INTERESTS'
