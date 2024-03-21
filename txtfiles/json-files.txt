@@ -1,0 +1,78 @@
+{
+    "fname": "John",
+    "lname": "Doe",
+    "address": {
+        "street": "123 Main St",
+        "city": "Houston",
+        "state": "Texas",
+        "zip_code": "12345",
+        "country": "USA",
+        "comfort_radius": 10,
+        "longitude": 40.712776,
+        "latitude": -74.005974
+    },
+    "ethnicity": "Black",
+    "stylist_should_know": "I have a pretty sensitive scalp",
+    "hair_profile": {
+        "thickness": 2,
+        "hair_type": 3,
+        "hair_gender": 1,
+        "color_hist": "I bleached it two weeks ago",
+        "color_level": 5
+    },
+    "interests": [1, 3, 5]
+}
+
+stylists:
+
+{
+    "fname": "Alex",
+    "lname": "Smith",
+    "clients_should_know": "Skilled in advanced coloring techniques",
+    "address": {
+        "street": "456 Elm St",
+        "city": "Austin",
+        "state": "Texas",
+        "zip_code": "67890",
+        "country": "USA",
+        "comfort_radius": 15,
+        "longitude": -97.7431,
+        "latitude": 30.2672
+    },
+    "specialities": [1, 3]
+}
+
+{
+    "fname": "Bella",
+    "lname": "Johnson",
+    "clients_should_know": "Expert in vintage hair styling",
+    "address": {
+        "street": "789 Oak St",
+        "city": "Dallas",
+        "state": "Texas",
+        "zip_code": "54321",
+        "country": "USA",
+        "comfort_radius": 20,
+        "longitude": -96.7970,
+        "latitude": 32.7767
+    },
+    "specialities": [2, 5]
+}
+
+{
+    "fname": "Charlie",
+    "lname": "Lee",
+    "clients_should_know": "Specializes in curly hair treatments",
+    "address": {
+        "street": "1012 Pine St",
+        "city": "San Antonio",
+        "state": "Texas",
+        "zip_code": "21098",
+        "country": "USA",
+        "comfort_radius": 25,
+        "longitude": -98.4936,
+        "latitude": 29.4241
+    },
+    "specialities": [4, 6]
+}
+

@@ -1,0 +1,28 @@
+for stylists (specialities): 
+1 - fine hair
+2 - medium hair
+3 - coarse hair
+4 - straight
+5 - wavy
+6 - curly
+
+for clients (interests):
+1 - high fades
+2 - low fades
+3 - femme cuts
+4 - masc cuts
+5 - blond service
+6 - braids
+7 - fantasy color
+8 - alt cuts
+
+(thickness):
+1 - fine
+2 - medium
+3 - coarse
+
+(hair type):
+1 - straight
+2 - wavy
+3 - curly
+

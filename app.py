@@ -25,7 +25,7 @@
 
 from flask import Flask
 from dotenv import load_dotenv
-from blueprints.client import client_bp
+from blueprints.create import client_bp, stylist_bp
 import os
 
 from extensions import db
@@ -41,8 +41,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 db.init_app(app)
 
 app.register_blueprint(client_bp)
+app.register_blueprint(stylist_bp)
 
-# Add this part to run only if this is the main module
+# Add this panrt to run only if this is the main module
 if __name__ == '__main__':
     # Create tables
     with app.app_context():
