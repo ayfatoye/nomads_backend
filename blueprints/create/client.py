@@ -1,11 +1,14 @@
+import os
 import colorama
 from colorama import Fore, Style
 
+from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request, abort
 from extensions import db  # Import the shared db instance
 from models import Client, HairProfile, ClientInterest, ClientAddress
 
 from . import client_bp
+from supabase import create_client
 
 def create_hair_profile(hair_data):
     hair_profile = HairProfile(
@@ -105,3 +108,41 @@ def get_client_profile(client_id):
     }
 
     return jsonify(client_data)
+
+
+load_dotenv()
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+@client_bp.route('/signup-client', methods=['POST'])
+def signup_client():
+    try:
+        data = request.get_json()
+        _email = data.get('email')
+        _password = data.get('password')
+
+        res = supabase.auth.sign_up({
+            "email": _email,
+            "password": _password,
+        })
+
+        if 'error' in res:
+            raise ValueError(res['error'])
+
+        user_id = res['user'].id if 'user' in res else None
+        session_token = res['session'].access_token if 'session' in res else None
+
+        return jsonify({
+            'message': 'Client successfully created',
+            'session': session_token,
+            'user_uid': user_id
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'message': 'Failed to create client',
+            'error': str(e),
+            'session': None,
+            'user_uid': None
+        }), 400

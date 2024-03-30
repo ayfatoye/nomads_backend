@@ -2,6 +2,7 @@
 import colorama
 from colorama import Fore, Style
 
+
 # imports for stylists-nearby route
 from models import Client, ClientAddress, HairProfile, ClientInterest
 from useful_helpers import haversine
@@ -195,6 +196,39 @@ def mina(client_id):
 
     return jsonify({"stylists": stylists_output_sorted}), 200
 
+import supabase
+from supabase import create_client
+
+url: str = "https://sockukwcrqgwpkebbqfq.supabase.co"
+key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvY2t1a3djcnFnd3BrZWJicWZxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwODU2NjM0OSwiZXhwIjoyMDI0MTQyMzQ5fQ.uWR6ho-B7FnRY_dcPeqJO-KkW2uOpK7y-h3qpcipA-Y"
+supabase: Client = create_client(url, key)
+
+@stylist_bp.route('/send-otp', methods=['POST'])
+def send_otp():
+    data = request.get_json()
+    _email = data.get('email')
+    _password = data.get('password')
+    
+    res = supabase.auth.sign_in_with_otp({
+        "email": _email,
+        "options": {
+            "email_redirect_to": 'https://people.tamu.edu/~sebastianoberg2002',
+            "should_create_user": True
+        }
+    })
+
+    # so at least we have username and password working for sure for now
+    # print("email: ", _email)
+    # res = supabase.auth.sign_up({
+    # "email": _email,
+    # "password": _password,
+    # })
 
 
+    print("response: ", res)
+    
+    if 'error' in res:
+        return jsonify({'error': res['error']}), 400
+
+    return jsonify({'message': 'OTP sent to your email'}), 200
 
