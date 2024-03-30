@@ -5,7 +5,7 @@ from colorama import Fore, Style
 from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request, abort
 from extensions import db  # Import the shared db instance
-from models import Client, HairProfile, ClientInterest, ClientAddress
+from models import Client, HairProfile, ClientInterest, ClientAddress, UidToClientId
 
 from . import client_bp
 from supabase import create_client, Client as SupabaseClient
@@ -71,6 +71,23 @@ def client_profile():
         db.session.rollback()
         abort(500, description=str(e))
 
+    print(Fore.RED)
+    print("clientid: ", client.id, "uid: ", data['uid'])
+    print(Fore.RESET)
+
+    # authentication purposes
+    uid_to_clientid = UidToClientId(
+        uid=data['uid'],
+        client_id=client.id
+    )
+    db.session.add(uid_to_clientid)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=str(e))
+
     return jsonify(client_id=client.id, hair_profile_id=hair_profile.id, client_address_id=client_address.id, client_interest_ids=interests_ids), 201
     return jsonify({"message": "Client profile data 2"})
 
@@ -128,21 +145,82 @@ def signup_client():
             "password": _password,
         })
 
-        if 'error' in res:
-            raise ValueError(res['error'])
+        print(Fore.GREEN + str(res) + Fore.RESET)
 
-        user_id = res['user'].id if 'user' in res else None
-        session_token = res['session'].access_token if 'session' in res else None
+        # Extracting user ID and access token from the response
+        user_id = res.user.id if res.user else None
+        session_token = res.session.access_token if res.session else None
 
-        return jsonify({
-            'message': 'Client successfully created',
-            'session': session_token,
-            'user_uid': user_id
-        }), 200
+        if user_id and session_token:
+            return jsonify({
+                'message': 'Client successfully created',
+                'session': session_token,
+                'user_uid': user_id
+            }), 200
+        else:
+            raise ValueError('User or session not found in the response')
+
     except Exception as e:
+        print(Fore.RED + str(e) + Fore.RESET)
         return jsonify({
             'message': 'Failed to create client',
             'error': str(e),
             'session': None,
             'user_uid': None
+        }), 400
+
+@client_bp.route('/signin-client', methods=['POST'])
+def signin_client():
+    try:
+        data = request.get_json()
+        _email = data.get('email')
+        _password = data.get('password')
+
+        res = supabase.auth.sign_in_with_password({
+            "email": _email,
+            "password": _password,
+        })
+
+        print(Fore.GREEN + str(res) + Fore.RESET)
+
+        user_id = res.user.id if res.user else None
+        session_token = res.session.access_token if res.session else None
+
+        if user_id and session_token:
+            return jsonify({
+                'message': 'Client successfully signed in',
+                'access_token': session_token,
+                'user_uid': user_id
+            }), 200
+        else:
+            raise ValueError('User or session not found in the response')
+
+    except Exception as e:
+        print(Fore.RED + str(e) + Fore.RESET)
+        return jsonify({
+            'message': 'Failed to sign in client',
+            'error': str(e),
+            'access_token': None,
+            'user_uid': None
+        }), 400
+
+@client_bp.route('/signout-client', methods=['GET'])
+def signout_client():
+    try:
+        res = supabase.auth.sign_out()
+
+        print(Fore.GREEN + str(res) + Fore.RESET)
+
+        user_id = res['user'].id if 'user' in res else None
+        session_token = res['session'].access_token if 'session' in res else None
+
+        return jsonify({
+            'message': 'Client successfully signed in',
+            'session': session_token,
+            'user_uid': user_id
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'message': 'Failed to sign out client',
+            'error': str(e)
         }), 400
