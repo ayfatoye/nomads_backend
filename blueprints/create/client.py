@@ -163,7 +163,7 @@ def signup_client():
     except Exception as e:
         print(Fore.RED + str(e) + Fore.RESET)
         return jsonify({
-            'message': 'Failed to create client',
+            'message': 'Account already exists, please sign in',
             'error': str(e),
             'session': None,
             'user_uid': None
