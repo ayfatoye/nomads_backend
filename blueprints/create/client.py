@@ -8,7 +8,7 @@ from extensions import db  # Import the shared db instance
 from models import Client, HairProfile, ClientInterest, ClientAddress
 
 from . import client_bp
-from supabase import create_client
+from supabase import create_client, Client as SupabaseClient
 
 def create_hair_profile(hair_data):
     hair_profile = HairProfile(
@@ -114,7 +114,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: SupabaseClient = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @client_bp.route('/signup-client', methods=['POST'])
 def signup_client():
