@@ -224,3 +224,63 @@ def signout_client():
             'message': 'Failed to sign out client',
             'error': str(e)
         }), 400
+    
+
+@client_bp.route('/send-otp', methods=['POST'])
+def send_otp():
+    data = request.get_json()
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    try:
+        # Generate and send the OTP
+        otp_response = supabase.auth.sign_in_with_otp({
+            'email': email,
+            'options': {
+                'email_redirect_to': 'https://people.tamu.edu/~sebastianoberg2002/'
+            }
+        })
+        
+        # if otp_response.status_code == 200:
+        #     return jsonify({'message': 'OTP sent successfully'}), 200
+        # else:
+        #     return jsonify({'error': 'Failed to send OTP'}), 500
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@client_bp.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    try:
+        data = request.get_json()
+        _email = data.get('email')
+        _otp = data.get('otp')
+        
+        if not _email or not _otp:
+            raise ValueError('Email and OTP are required')
+        
+        res = supabase.auth.verify_otp(_email, _otp)
+        print(Fore.GREEN + str(res) + Fore.RESET)
+        
+        user_id = res.user.id if res.user else None
+        session_token = res.session.access_token if res.session else None
+        
+        if user_id and session_token:
+            return jsonify({
+                'message': 'OTP verification successful',
+                'access_token': session_token,
+                'user_uid': user_id
+            }), 200
+        else:
+            raise ValueError('User or session not found in the response')
+    
+    except Exception as e:
+        print(Fore.RED + str(e) + Fore.RESET)
+        return jsonify({
+            'message': 'Failed to verify OTP',
+            'error': str(e),
+            'access_token': None,
+            'user_uid': None
+        }), 400
