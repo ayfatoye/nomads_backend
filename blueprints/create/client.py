@@ -5,7 +5,7 @@ from colorama import Fore, Style
 from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request, abort
 from extensions import db  # Import the shared db instance
-from models import Client, HairProfile, ClientInterest, ClientAddress, UidToClientId
+from models import Client, HairProfile, ClientInterest, ClientAddress, UidToClientId, Rating, RatingTag
 
 from . import client_bp
 from supabase import create_client, Client as SupabaseClient
@@ -42,6 +42,11 @@ def client_profile():
 
     # I'm creating and inserting instances of HairProfile, ClientAddress, and ClientInterest
     hair_profile = create_hair_profile(data['hair_profile'])
+    '''
+    extra address data to be run through an api that will give me the longitude and latitude
+    and latitude of the address. then add the long and lat to the json object representing the address
+    then use said json object to create the client address
+    '''
     client_address = create_client_address(data['address'])
     db.session.add(hair_profile)
     db.session.add(client_address)
@@ -226,61 +231,35 @@ def signout_client():
         }), 400
     
 
-@client_bp.route('/send-otp', methods=['POST'])
-def send_otp():
+@client_bp.route('/create-rating', methods=['POST'])
+def create_rating():
     data = request.get_json()
-    email = data.get('email')
-    
-    if not email:
-        return jsonify({'error': 'Email is required'}), 400
-    
-    try:
-        # Generate and send the OTP
-        otp_response = supabase.auth.sign_in_with_otp({
-            'email': email,
-            'options': {
-                'email_redirect_to': 'https://people.tamu.edu/~sebastianoberg2002/'
-            }
-        })
-        
-        # if otp_response.status_code == 200:
-        #     return jsonify({'message': 'OTP sent successfully'}), 200
-        # else:
-        #     return jsonify({'error': 'Failed to send OTP'}), 500
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
-@client_bp.route('/verify-otp', methods=['POST'])
-def verify_otp():
-    try:
-        data = request.get_json()
-        _email = data.get('email')
-        _otp = data.get('otp')
-        
-        if not _email or not _otp:
-            raise ValueError('Email and OTP are required')
-        
-        res = supabase.auth.verify_otp(_email, _otp)
-        print(Fore.GREEN + str(res) + Fore.RESET)
-        
-        user_id = res.user.id if res.user else None
-        session_token = res.session.access_token if res.session else None
-        
-        if user_id and session_token:
-            return jsonify({
-                'message': 'OTP verification successful',
-                'access_token': session_token,
-                'user_uid': user_id
-            }), 200
-        else:
-            raise ValueError('User or session not found in the response')
-    
-    except Exception as e:
-        print(Fore.RED + str(e) + Fore.RESET)
-        return jsonify({
-            'message': 'Failed to verify OTP',
-            'error': str(e),
-            'access_token': None,
-            'user_uid': None
-        }), 400
+
+    client_id = data['client_id']
+    stylist_id = data['stylist_id']
+    review = data['review']
+    stars = data['stars']
+
+    rating = Rating(stylist_id=stylist_id, client_id=client_id, review=review, stars=stars)
+    db.session.add(rating)
+    db.session.commit()
+    rating_id = rating.id
+
+    client = Client.query.get(client_id)
+    hair_id = client.hair_id
+
+    hair_profile = HairProfile.query.get(hair_id)
+    thickness = hair_profile.thickness
+    hair_type = hair_profile.hair_type
+    hair_gender = hair_profile.hair_gender
+
+    interests = ClientInterest.query.filter_by(hair_id=hair_id).all()
+    interest_tags = [interest.interest for interest in interests]
+
+    tags = [thickness, hair_type, hair_gender] + interest_tags
+    for tag in tags:
+        rating_tag = RatingTag(rating_id=rating_id, tag=tag)
+        db.session.add(rating_tag)
+    db.session.commit()
+
+    return jsonify({"message": "Ratings successfully made!"})

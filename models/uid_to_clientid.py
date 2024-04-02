@@ -1,7 +1,5 @@
 from extensions import db
 
-from extensions import db
-
 class UidToClientId(db.Model):
     __tablename__ = 'UID_TO_CLIENTID'
 
