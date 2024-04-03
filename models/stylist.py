@@ -37,6 +37,7 @@ class Stylist(db.Model):
     addresses = db.relationship('StylistAddress', backref='stylist', lazy=True)
     specialities = db.relationship('StylistSpeciality', backref='stylist', lazy=True)
     rating = db.Column(db.Float)
+    avg_price = db.Column(db.Float)
 
     def __repr__(self):
         return f"<Stylist {self.fname} {self.lname}>"

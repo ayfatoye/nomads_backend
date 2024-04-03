@@ -3,9 +3,10 @@ import colorama
 from colorama import Fore, Style
 
 from dotenv import load_dotenv
-from flask import Blueprint, jsonify, request, abort
-from extensions import db  # Import the shared db instance
-from models import Client, HairProfile, ClientInterest, ClientAddress, UidToClientId, Rating, RatingTag
+from flask import jsonify, request, abort
+from extensions import db 
+from models import Client, HairProfile, ClientInterest, ClientAddress, UidToUserId, Rating, RatingTag, Stylist
+
 
 from . import client_bp
 from supabase import create_client, Client as SupabaseClient
@@ -20,18 +21,45 @@ def create_hair_profile(hair_data):
     )
     return hair_profile
 
+import requests
 def create_client_address(address_data):
-    client_address = ClientAddress(
-        street=address_data['street'],
-        city=address_data['city'],
-        state=address_data['state'],
-        zip_code=address_data['zip_code'],
-        country=address_data['country'],
-        comfort_radius=address_data['comfort_radius'],
-        longitude=address_data['longitude'],
-        latitude=address_data['latitude']
-    )
-    return client_address
+    street = address_data['street']
+    city = address_data['city']
+    state = address_data['state']
+    zip_code = address_data['zip_code']
+    country = address_data['country']
+    comfort_radius = address_data['comfort_radius']
+
+    api_key = os.getenv('GMAPS_API_KEY')
+    api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address={street},{city},{state},{zip_code},{country}&key={api_key}'
+    response = requests.get(api_url)
+    data = response.json()
+
+    if data['status'] == 'OK':
+        result = data['results'][0]
+        longitude = result['geometry']['location']['lng']
+        latitude = result['geometry']['location']['lat']
+
+        print(Fore.GREEN, f'Longitude: {longitude}, Latitude: {latitude}', Fore.RESET)
+
+        # Add longitude and latitude to the address_data
+        address_data['longitude'] = longitude
+        address_data['latitude'] = latitude
+
+        # Create the ClientAddress instance
+        client_address = ClientAddress(
+            street=street,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            country=country,
+            comfort_radius=comfort_radius,
+            longitude=longitude,
+            latitude=latitude
+        )
+        return client_address
+    else:
+        raise ValueError('Failed to retrieve longitude and latitude from the API')
 
 
 @client_bp.route('/create-client', methods=['POST'])
@@ -43,7 +71,7 @@ def client_profile():
     # I'm creating and inserting instances of HairProfile, ClientAddress, and ClientInterest
     hair_profile = create_hair_profile(data['hair_profile'])
     '''
-    extra address data to be run through an api that will give me the longitude and latitude
+    extract address data to be run through an api that will give me the longitude and latitude
     and latitude of the address. then add the long and lat to the json object representing the address
     then use said json object to create the client address
     '''
@@ -81,11 +109,12 @@ def client_profile():
     print(Fore.RESET)
 
     # authentication purposes
-    uid_to_clientid = UidToClientId(
+    uid_to_userid = UidToUserId(
         uid=data['uid'],
-        client_id=client.id
+        user_id=client.id,
+        user_type="client"
     )
-    db.session.add(uid_to_clientid)
+    db.session.add(uid_to_userid)
 
     try:
         db.session.commit()
@@ -233,6 +262,7 @@ def signout_client():
 
 @client_bp.route('/create-rating', methods=['POST'])
 def create_rating():
+    # function to let clients create ratings for stylists
     data = request.get_json()
 
     client_id = data['client_id']
@@ -257,9 +287,50 @@ def create_rating():
     interest_tags = [interest.interest for interest in interests]
 
     tags = [thickness, hair_type, hair_gender] + interest_tags
+    # print(Fore.RED, str(tags), Fore.RESET)
     for tag in tags:
         rating_tag = RatingTag(rating_id=rating_id, tag=tag)
         db.session.add(rating_tag)
+
+    stylist = Stylist.query.get(stylist_id)
+    if stylist:
+        ratings = Rating.query.filter_by(stylist_id=stylist_id).all()
+        total_stars = sum(rating.stars for rating in ratings)
+        num_ratings = len(ratings)
+        if num_ratings > 0:
+            average_rating = total_stars / num_ratings
+            stylist.rating = average_rating
+            db.session.commit()
+
+
     db.session.commit()
 
     return jsonify({"message": "Ratings successfully made!"})
+
+@client_bp.route('/change-radius/<int:client_id>', methods=['POST'])
+def change_radius(client_id):
+    data = request.get_json()
+    new_radius = data.get('comfort_radius')
+
+    if new_radius is None:
+        return jsonify({'error': 'comfort_radius is required'}), 400
+
+    client = Client.query.get(client_id)
+
+    if client is None:
+        return jsonify({'error': 'Client not found'}), 404
+
+    address_id = client.address_id
+    client_address = ClientAddress.query.get(address_id)
+
+    if client_address is None:
+        return jsonify({'error': 'Client address not found'}), 404
+
+    client_address.comfort_radius = new_radius
+
+    try:
+        db.session.commit()
+        return jsonify({'message': 'Comfort radius updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

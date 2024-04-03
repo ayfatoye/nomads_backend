@@ -1,71 +1,36 @@
+import os
+import requests
+from dotenv import load_dotenv
+
 # imports for testing
 import colorama
 from colorama import Fore, Style
 
 
 # imports for stylists-nearby route
-from models import Client, ClientAddress, HairProfile, ClientInterest
-from useful_helpers import haversine
+from models import Client, ClientAddress, UidToUserId, Stylist, StylistAddress, StylistSpeciality
+from useful_helpers import haversine, get_client_profile
 
 # imports for create-stylist route
 from flask import jsonify, request, abort
 from extensions import db
-from models.stylist import Stylist, StylistSpeciality, StylistAddress
 
 from . import stylist_bp
 
-
-def get_client_profile(client_id):
-    client = Client.query.get_or_404(client_id)
-    hair_profile = HairProfile.query.get_or_404(client.hair_id)
-    client_address = ClientAddress.query.get_or_404(client.address_id)
-    client_interests = ClientInterest.query.filter_by(
-        hair_id=client.hair_id).all()
-
-    client_data = {
-        'fname': client.fname,
-        'lname': client.lname,
-        'ethnicity': client.ethnicity,
-        'stylists_should_know': client.stylists_should_know,
-        'hair_profile': {
-            'thickness': hair_profile.thickness,
-            'hair_type': hair_profile.hair_type,
-            'hair_gender': hair_profile.hair_gender,
-            'color_level': hair_profile.color_level,
-            'color_hist': hair_profile.color_hist
-        },
-        'address': {
-            'street': client_address.street,
-            'city': client_address.city,
-            'state': client_address.state,
-            'zip_code': client_address.zip_code,
-            'country': client_address.country,
-            'comfort_radius': client_address.comfort_radius,
-            'longitude': client_address.longitude,
-            'latitude': client_address.latitude
-        },
-        'interests': [interest.interest for interest in client_interests]
-    }
-
-    return client_data
-
+load_dotenv()
 
 def decision_tree_comp(stylist, client):
     client_interests = client.get('interests', [])
-    print(Fore.GREEN)
-    print(client_interests)
-    print(Fore.RESET)
+    print(Fore.GREEN, client_interests, Fore.RESET)
     stylist_specialities = stylist.get('specialities', [])
-    print(Fore.RED)
-    print("stylist_specialities: ", stylist_specialities)
-    print(Fore.RESET)
+    print(Fore.RED, stylist_specialities, Fore.RESET)
 
     match_count = sum(
         1 for interest in client_interests if interest in stylist_specialities)
     total_interests = len(client_interests)
 
     if total_interests == 0:
-        return 0  # Avoid division by zero
+        return 0  
     match_percentage = (match_count / total_interests) * 100
 
     return round(match_percentage, 2)
@@ -75,34 +40,65 @@ def decision_tree_comp(stylist, client):
 def create_stylist_profile():
     data = request.get_json()
 
+    # Extract address data
+    address_data = data['address']
+    street = address_data['street']
+    city = address_data['city']
+    state = address_data['state']
+    zip_code = address_data['zip_code']
+    country = address_data['country']
+    comfort_radius = address_data['comfort_radius']
+
+    # Make API request to get longitude and latitude
+    api_key = os.getenv('GMAPS_API_KEY')
+    api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address={street},{city},{state},{zip_code},{country}&key={api_key}'
+    response = requests.get(api_url)
+    api_data = response.json()
+
+    if api_data['status'] == 'OK':
+        result = api_data['results'][0]
+        longitude = result['geometry']['location']['lng']
+        latitude = result['geometry']['location']['lat']
+    else:
+        abort(500, description="Failed to retrieve longitude and latitude from the API")
+
     stylist = Stylist(
         fname=data['fname'],
         lname=data['lname'],
-        clients_should_know=data['clients_should_know']
+        clients_should_know=data['clients_should_know'],
+        avg_price=data['avg_price']
     )
     db.session.add(stylist)
     db.session.flush()
 
     stylist_address = StylistAddress(
-        stylist_id=stylist.id,  # linking the address with the stylist
-        street=data['address']['street'],
-        city=data['address']['city'],
-        state=data['address']['state'],
-        zip_code=data['address']['zip_code'],
-        country=data['address']['country'],
-        comfort_radius=data['address']['comfort_radius'],
-        longitude=data['address']['longitude'],
-        latitude=data['address']['latitude']
+        stylist_id=stylist.id,
+        street=street,
+        city=city,
+        state=state,
+        zip_code=zip_code,
+        country=country,
+        comfort_radius=comfort_radius,
+        longitude=longitude,
+        latitude=latitude
     )
     db.session.add(stylist_address)
 
-    # writing in specialities the Stylist has
+    # Writing in specialities the Stylist has
     for speciality_id in data['specialities']:
         stylist_speciality = StylistSpeciality(
-            stylist_id=stylist.id,  # Associate the speciality with the stylist
+            stylist_id=stylist.id,
             speciality=speciality_id
         )
         db.session.add(stylist_speciality)
+
+    # Authentication purposes
+    uid_to_clientid = UidToUserId(
+        uid=data['uid'],
+        user_id=stylist.id,
+        user_type='stylist'
+    )
+    db.session.add(uid_to_clientid)
 
     try:
         db.session.commit()
@@ -199,8 +195,8 @@ def mina(client_id):
 import supabase
 from supabase import create_client
 
-url: str = "https://sockukwcrqgwpkebbqfq.supabase.co"
-key: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvY2t1a3djcnFnd3BrZWJicWZxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwODU2NjM0OSwiZXhwIjoyMDI0MTQyMzQ5fQ.uWR6ho-B7FnRY_dcPeqJO-KkW2uOpK7y-h3qpcipA-Y"
+url: str = os.getenv('SUPABASE_URL')
+key: str = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
 @stylist_bp.route('/send-otp', methods=['POST'])
@@ -232,3 +228,29 @@ def send_otp():
 
     return jsonify({'message': 'OTP sent to your email'}), 200
 
+@stylist_bp.route('/read-stylist/<int:stylist_id>', methods=['GET'])
+def get_stylist_profile(stylist_id):
+    stylist = Stylist.query.get_or_404(stylist_id)
+    stylist_address = StylistAddress.query.filter_by(stylist_id=stylist.id).first()
+    stylist_specialities = StylistSpeciality.query.filter_by(stylist_id=stylist.id).all()
+
+    stylist_data = {
+        'fname': stylist.fname,
+        'lname': stylist.lname,
+        'clients_should_know': stylist.clients_should_know,
+        'rating': stylist.rating,
+        'avg_price': stylist.avg_price, 
+        'address': {
+            'street': stylist_address.street,
+            'city': stylist_address.city,
+            'state': stylist_address.state,
+            'zip_code': stylist_address.zip_code,
+            'country': stylist_address.country,
+            'comfort_radius': stylist_address.comfort_radius,
+            'longitude': stylist_address.longitude,
+            'latitude': stylist_address.latitude
+        },
+        'specialities': [speciality.speciality for speciality in stylist_specialities]
+    }
+
+    return jsonify(stylist_data)
