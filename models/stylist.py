@@ -38,6 +38,19 @@ class Stylist(db.Model):
     specialities = db.relationship('StylistSpeciality', backref='stylist', lazy=True)
     rating = db.Column(db.Float)
     avg_price = db.Column(db.Float)
+    contacts_id = db.Column(db.BigInteger, db.ForeignKey('STYLIST_CONTACTS.id'))
 
     def __repr__(self):
         return f"<Stylist {self.fname} {self.lname}>"
+    
+class StylistContact(db.Model):
+    __tablename__ = 'STYLIST_CONTACTS'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    phone_num = db.Column(db.Text)
+    instagram = db.Column(db.Text)
+    twitter = db.Column(db.Text)
+    linked_tree = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f"<StylistContact {self.phone_num} {self.instagram}>"

@@ -5,7 +5,7 @@ from colorama import Fore, Style
 from dotenv import load_dotenv
 from flask import jsonify, request, abort
 from extensions import db 
-from models import Client, HairProfile, ClientInterest, ClientAddress, UidToUserId, Rating, RatingTag, Stylist
+from models import Client, HairProfile, ClientInterest, ClientAddress, UidToUserId, Rating, RatingTag, Stylist, ClientFavourite
 
 
 from . import client_bp
@@ -334,3 +334,79 @@ def change_radius(client_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+    
+@client_bp.route('/add-to-favourites/<int:client_id>', methods=['POST'])
+def add_to_favourites(client_id):
+    data = request.get_json()
+    stylist_id = data.get('stylist_id')
+
+    if not stylist_id:
+        abort(400, description="Stylist ID is required")
+
+    client = Client.query.get(client_id)
+    if not client:
+        abort(404, description=f"Client with ID {client_id} not found")
+
+    stylist = Stylist.query.get(stylist_id)
+    if not stylist:
+        abort(404, description=f"Stylist with ID {stylist_id} not found")
+
+    favourite = ClientFavourite(client_id=client_id, stylist_id=stylist_id)
+    db.session.add(favourite)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=str(e))
+
+    return jsonify(message="Stylist added to favorites"), 201
+
+@client_bp.route('/remove-from-favourites/<int:client_id>', methods=['POST'])
+def remove_from_favorites(client_id):
+    data = request.get_json()
+    stylist_id = data.get('stylist_id')
+
+    if not stylist_id:
+        abort(400, description="Stylist ID is required")
+
+    client = Client.query.get(client_id)
+    if not client:
+        abort(404, description=f"Client with ID {client_id} not found")
+
+    favourite = ClientFavourite.query.filter_by(client_id=client_id, stylist_id=stylist_id).first()
+    if not favourite:
+        abort(404, description=f"Stylist with ID {stylist_id} not found in favorites")
+
+    db.session.delete(favourite)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=str(e))
+
+    return jsonify(message="Stylist removed from favorites"), 200
+
+@client_bp.route('/get-all-favs/<int:client_id>', methods=['GET'])
+def get_all_favs(client_id):
+    client = Client.query.get(client_id)
+    if not client:
+        abort(404, description=f"Client with ID {client_id} not found")
+
+    favorites = ClientFavourite.query.filter_by(client_id=client_id).all()
+    stylist_ids = [fav.stylist_id for fav in favorites]
+
+    stylists = Stylist.query.filter(Stylist.id.in_(stylist_ids)).all()
+
+    stylist_data = []
+    for stylist in stylists:
+        stylist_info = {
+            'id': stylist.id,
+            'fname': stylist.fname,
+            'lname': stylist.lname,
+            'avg_price': stylist.avg_price
+        }
+        stylist_data.append(stylist_info)
+
+    return jsonify(stylists=stylist_data), 200

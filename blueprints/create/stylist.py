@@ -8,7 +8,7 @@ from colorama import Fore, Style
 
 
 # imports for stylists-nearby route
-from models import Client, ClientAddress, UidToUserId, Stylist, StylistAddress, StylistSpeciality, Rating, RatingTag
+from models import Client, ClientAddress, UidToUserId, Stylist, StylistAddress, StylistSpeciality, Rating, RatingTag, StylistContact
 from useful_helpers import haversine, get_client_profile, hair_tags
 
 # imports for create-stylist route
@@ -40,6 +40,17 @@ def decision_tree_comp(stylist, client):
 def create_stylist_profile():
     data = request.get_json()
 
+    contacts_data = data.get('contacts', {})
+    
+    stylist_contact = StylistContact(
+        phone_num=contacts_data.get('phone_num'), 
+        instagram=contacts_data.get('instagram'),
+        twitter=contacts_data.get('twitter'),
+        linked_tree=contacts_data.get('linked_tree')
+    )
+    db.session.add(stylist_contact)
+    db.session.flush()
+
     # Extract address data
     address_data = data['address']
     street = address_data['street']
@@ -66,7 +77,8 @@ def create_stylist_profile():
         fname=data['fname'],
         lname=data['lname'],
         clients_should_know=data['clients_should_know'],
-        avg_price=data['avg_price']
+        avg_price=data['avg_price'],
+        contacts_id=stylist_contact.id
     )
     db.session.add(stylist)
     db.session.flush()
@@ -164,9 +176,7 @@ def mina(client_id):
     client_data = get_client_profile(client_id)
     if not isinstance(client_data, dict):
         return jsonify({"error": "Could not retrieve client profile"}), 400
-    # print(Fore.GREEN)
-    # print(client_data)
-    # print(Fore.RESET)
+
 
     # getting the stylists data
     stylists_data = get_stylists_nearby(client_id)
@@ -176,9 +186,6 @@ def mina(client_id):
     if len(stylists_data.get('stylists', [])) == 0:
         return jsonify({"message": "There are no stylists in your comfort radius, please consider increasing it."}), 400
     
-    # print(Fore.GREEN)
-    # print(stylists_data)
-    # print(Fore.RESET)
 
     stylists_output = []
 
@@ -212,14 +219,6 @@ def send_otp():
             "should_create_user": True
         }
     })
-
-    # so at least we have username and password working for sure for now
-    # print("email: ", _email)
-    # res = supabase.auth.sign_up({
-    # "email": _email,
-    # "password": _password,
-    # })
-
 
     print("response: ", res)
     
