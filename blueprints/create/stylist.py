@@ -8,8 +8,8 @@ from colorama import Fore, Style
 
 
 # imports for stylists-nearby route
-from models import Client, ClientAddress, UidToUserId, Stylist, StylistAddress, StylistSpeciality
-from useful_helpers import haversine, get_client_profile
+from models import Client, ClientAddress, UidToUserId, Stylist, StylistAddress, StylistSpeciality, Rating, RatingTag
+from useful_helpers import haversine, get_client_profile, hair_tags
 
 # imports for create-stylist route
 from flask import jsonify, request, abort
@@ -254,3 +254,36 @@ def get_stylist_profile(stylist_id):
     }
 
     return jsonify(stylist_data)
+
+@stylist_bp.route('/get-ratings/<int:stylist_id>', methods=['GET'])
+def get_ratings(stylist_id):
+    stylist = Stylist.query.get(stylist_id)
+    if not stylist:
+        return jsonify({"error": "Stylist not found"}), 404
+
+    ratings = Rating.query.filter_by(stylist_id=stylist_id).all()
+    rating_data = []
+
+    for rating in ratings:
+        client = Client.query.get(rating.client_id)
+        client_name = f"{client.fname} {client.lname}" if client else "Unknown"
+
+        rating_tags = RatingTag.query.filter_by(rating_id=rating.id).all()
+        tags = [hair_tags.get(tag.tag, "Unknown") for tag in rating_tags]
+
+        rating_data.append({
+            "rating_id": rating.id,
+            "client_id": rating.client_id,
+            "client_name": client_name,
+            "review": rating.review,
+            "stars": rating.stars,
+            "tags": tags
+        })
+
+    average_rating = stylist.rating if stylist.rating else 0
+
+    return jsonify({
+        "stylist_id": stylist_id,
+        "average_rating": average_rating,
+        "ratings": rating_data
+    })
