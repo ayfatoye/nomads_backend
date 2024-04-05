@@ -188,6 +188,7 @@ def signup_client():
         if user_id and session_token:
             return jsonify({
                 'message': 'Client successfully created',
+                'ayo_status': 'success',
                 'session': session_token,
                 'user_uid': user_id
             }), 200
@@ -199,6 +200,7 @@ def signup_client():
         return jsonify({
             'message': 'Account already exists, please sign in',
             'error': str(e),
+            'ayo_status': 'fail',
             'session': None,
             'user_uid': None
         }), 400
@@ -307,7 +309,7 @@ def create_rating():
 
     return jsonify({"message": "Ratings successfully made!"})
 
-@client_bp.route('/change-radius/<int:client_id>', methods=['POST'])
+@client_bp.route('/change-radius/<int:client_id>', methods=['PUT'])
 def change_radius(client_id):
     data = request.get_json()
     new_radius = data.get('comfort_radius')
@@ -362,7 +364,7 @@ def add_to_favourites(client_id):
 
     return jsonify(message="Stylist added to favorites"), 201
 
-@client_bp.route('/remove-from-favourites/<int:client_id>', methods=['POST'])
+@client_bp.route('/remove-from-favourites/<int:client_id>', methods=['DELETE'])
 def remove_from_favorites(client_id):
     data = request.get_json()
     stylist_id = data.get('stylist_id')
@@ -410,3 +412,74 @@ def get_all_favs(client_id):
         stylist_data.append(stylist_info)
 
     return jsonify(stylists=stylist_data), 200
+
+@client_bp.route('/update-address/<int:client_id>', methods=['PUT'])
+def update_client_address(client_id):
+    data = request.get_json()
+
+    street = data.get('street')
+    city = data.get('city')
+    state = data.get('state')
+    zip_code = data.get('zip_code')
+    country = data.get('country')
+    comfort_radius = data.get('comfort_radius')
+
+    if not all([street, city, state, zip_code, country, comfort_radius]):
+        abort(400, description="All address fields are required")
+
+    client = Client.query.get(client_id)
+    if not client:
+        abort(404, description=f"Client with ID {client_id} not found")
+
+    client_address = ClientAddress.query.get(client.address_id)
+    if not client_address:
+        abort(404, description=f"Address for client with ID {client_id} not found")
+
+    client_address.street = street
+    client_address.city = city
+    client_address.state = state
+    client_address.zip_code = zip_code
+    client_address.country = country
+    client_address.comfort_radius = comfort_radius
+
+    api_key = os.getenv('GMAPS_API_KEY')
+    api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address={street},{city},{state},{zip_code},{country}&key={api_key}'
+    response = requests.get(api_url)
+    data = response.json()
+
+    if data['status'] == 'OK':
+        result = data['results'][0]
+        client_address.longitude = result['geometry']['location']['lng']
+        client_address.latitude = result['geometry']['location']['lat']
+    else:
+        abort(500, description="Failed to retrieve longitude and latitude from the API")
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=str(e))
+
+    return jsonify(message="Client address updated successfully", ayo_status="success"), 200
+
+@client_bp.route('/update-stylists-should-know/<int:client_id>', methods=['PUT'])
+def update_stylists_should_know(client_id):
+    data = request.get_json()
+
+    stylists_should_know = data.get('stylists_should_know')
+
+    if not stylists_should_know:
+        return jsonify(message="stylists_should_know field is required", ayo_status="error"), 400
+
+    client = Client.query.get(client_id)
+    if not client:
+        return jsonify(message=f"Client with ID {client_id} not found", ayo_status="error"), 404
+
+    client.stylists_should_know = stylists_should_know
+
+    try:
+        db.session.commit()
+        return jsonify(message="stylists_should_know updated successfully", ayo_status="success"), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(message=str(e), ayo_status="error"), 500
