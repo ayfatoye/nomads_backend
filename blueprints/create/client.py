@@ -483,3 +483,31 @@ def update_stylists_should_know(client_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(message=str(e), ayo_status="error"), 500
+    
+@client_bp.route('/update-interests/<int:client_id>', methods=['PUT'])
+def update_interests(client_id):
+    data = request.get_json()
+
+    interests = data.get('interests')
+
+    if not interests:
+        return jsonify(message="interests field is required", ayo_status="error"), 400
+
+    client = Client.query.get(client_id)
+    if not client:
+        return jsonify(message=f"Client with ID {client_id} not found", ayo_status="error"), 404
+
+    hair_id = client.hair_id
+
+    ClientInterest.query.filter_by(hair_id=hair_id).delete()
+
+    for interest in interests:
+        client_interest = ClientInterest(hair_id=hair_id, interest=interest)
+        db.session.add(client_interest)
+
+    try:
+        db.session.commit()
+        return jsonify(message="Interests updated successfully", ayo_status="success"), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(message=str(e), ayo_status="error"), 500
