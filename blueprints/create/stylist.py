@@ -249,7 +249,7 @@ def get_stylist_profile(stylist_id):
             'longitude': stylist_address.longitude,
             'latitude': stylist_address.latitude
         },
-        'specialities': [speciality.speciality for speciality in stylist_specialities]
+        'specialities': [hair_tags.get(speciality.speciality) for speciality in stylist_specialities]
     }
 
     return jsonify(stylist_data)

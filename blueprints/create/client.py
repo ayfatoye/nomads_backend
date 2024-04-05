@@ -1,4 +1,5 @@
 import os
+import requests
 import colorama
 from colorama import Fore, Style
 
@@ -6,6 +7,7 @@ from dotenv import load_dotenv
 from flask import jsonify, request, abort
 from extensions import db 
 from models import Client, HairProfile, ClientInterest, ClientAddress, UidToUserId, Rating, RatingTag, Stylist, ClientFavourite
+from useful_helpers import hair_tags
 
 
 from . import client_bp
@@ -21,7 +23,7 @@ def create_hair_profile(hair_data):
     )
     return hair_profile
 
-import requests
+
 def create_client_address(address_data):
     street = address_data['street']
     city = address_data['city']
@@ -42,11 +44,9 @@ def create_client_address(address_data):
 
         print(Fore.GREEN, f'Longitude: {longitude}, Latitude: {latitude}', Fore.RESET)
 
-        # Add longitude and latitude to the address_data
         address_data['longitude'] = longitude
         address_data['latitude'] = latitude
 
-        # Create the ClientAddress instance
         client_address = ClientAddress(
             street=street,
             city=city,
@@ -122,7 +122,7 @@ def client_profile():
         db.session.rollback()
         abort(500, description=str(e))
 
-    return jsonify(client_id=client.id, hair_profile_id=hair_profile.id, client_address_id=client_address.id, client_interest_ids=interests_ids), 201
+    return jsonify(client_id=client.id, hair_profile_id=hair_profile.id, client_address_id=client_address.id, client_interest_ids=interests_ids, ayo_status="success"), 201
     return jsonify({"message": "Client profile data 2"})
 
 
@@ -139,9 +139,9 @@ def get_client_profile(client_id):
         'ethnicity': client.ethnicity,
         'stylists_should_know': client.stylists_should_know,
         'hair_profile': {
-            'thickness': hair_profile.thickness,
-            'hair_type': hair_profile.hair_type,
-            'hair_gender': hair_profile.hair_gender,
+            'thickness': hair_tags.get(hair_profile.thickness),
+            'hair_type': hair_tags.get(hair_profile.hair_type),
+            'hair_gender': hair_tags.get(hair_profile.hair_gender),
             'color_level': hair_profile.color_level,
             'color_hist': hair_profile.color_hist
         },
@@ -155,7 +155,8 @@ def get_client_profile(client_id):
             'longitude': client_address.longitude,
             'latitude': client_address.latitude
         },
-        'interests': [interest.interest for interest in client_interests]
+        'interests': [hair_tags.get(interest.interest) for interest in client_interests],
+        'ayo_status': "success"
     }
 
     return jsonify(client_data)
@@ -226,7 +227,8 @@ def signin_client():
             return jsonify({
                 'message': 'Client successfully signed in',
                 'access_token': session_token,
-                'user_uid': user_id
+                'user_uid': user_id,
+                'ayo_status': 'success'
             }), 200
         else:
             raise ValueError('User or session not found in the response')
@@ -235,6 +237,7 @@ def signin_client():
         print(Fore.RED + str(e) + Fore.RESET)
         return jsonify({
             'message': 'Failed to sign in client',
+            'ayo_status': 'fail',
             'error': str(e),
             'access_token': None,
             'user_uid': None
@@ -253,11 +256,13 @@ def signout_client():
         return jsonify({
             'message': 'Client successfully signed in',
             'session': session_token,
-            'user_uid': user_id
+            'user_uid': user_id,
+            'ayo_status': 'success'
         }), 200
     except Exception as e:
         return jsonify({
             'message': 'Failed to sign out client',
+            'ayo_status': 'fail',
             'error': str(e)
         }), 400
     
@@ -307,7 +312,7 @@ def create_rating():
 
     db.session.commit()
 
-    return jsonify({"message": "Ratings successfully made!"})
+    return jsonify({"message": "Ratings successfully made!", 'ayo_status': 'success'})
 
 @client_bp.route('/change-radius/<int:client_id>', methods=['PUT'])
 def change_radius(client_id):
@@ -332,7 +337,7 @@ def change_radius(client_id):
 
     try:
         db.session.commit()
-        return jsonify({'message': 'Comfort radius updated successfully'})
+        return jsonify({'message': 'Comfort radius updated successfully', 'ayo_status': 'success'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -362,7 +367,7 @@ def add_to_favourites(client_id):
         db.session.rollback()
         abort(500, description=str(e))
 
-    return jsonify(message="Stylist added to favorites"), 201
+    return jsonify(message="Stylist added to favorites", ayo_status='success'), 201
 
 @client_bp.route('/remove-from-favourites/<int:client_id>', methods=['DELETE'])
 def remove_from_favorites(client_id):
@@ -388,7 +393,7 @@ def remove_from_favorites(client_id):
         db.session.rollback()
         abort(500, description=str(e))
 
-    return jsonify(message="Stylist removed from favorites"), 200
+    return jsonify(message="Stylist removed from favorites", ayo_status='success'), 200
 
 @client_bp.route('/get-all-favs/<int:client_id>', methods=['GET'])
 def get_all_favs(client_id):
@@ -407,11 +412,12 @@ def get_all_favs(client_id):
             'id': stylist.id,
             'fname': stylist.fname,
             'lname': stylist.lname,
-            'avg_price': stylist.avg_price
+            'avg_price': stylist.avg_price,
+            'rating': stylist.rating
         }
         stylist_data.append(stylist_info)
 
-    return jsonify(stylists=stylist_data), 200
+    return jsonify(stylists=stylist_data, ayo_status='success'), 200
 
 @client_bp.route('/update-address/<int:client_id>', methods=['PUT'])
 def update_client_address(client_id):
