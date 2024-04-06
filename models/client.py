@@ -8,7 +8,7 @@ class Client(db.Model):
     address_id = db.Column(db.BigInteger, db.ForeignKey('CLIENT_HAIRID.id'))  
     fname = db.Column(db.Text) 
     lname = db.Column(db.Text) 
-    ethnicity = db.Column(db.Text)  
+    ethnicity = db.Column(db.JSON)  
     stylists_should_know = db.Column(db.Text)
 
     def __repr__(self):
