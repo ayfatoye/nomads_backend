@@ -284,5 +284,48 @@ def get_ratings(stylist_id):
     return jsonify({
         "stylist_id": stylist_id,
         "average_rating": average_rating,
-        "ratings": rating_data
+        "ratings": rating_data,
+        "ayo_status": "success"
     })
+
+@stylist_bp.route('/update-address/<int:stylist_id>', methods=['PUT'])
+def update_stylist_address(stylist_id):
+    address_data = request.get_json()
+
+    stylist = Stylist.query.get(stylist_id)
+    if not stylist:
+        abort(404, description=f"Stylist with ID {stylist_id} not found")
+
+    if not address_data:
+        abort(400, description="Address data is required")
+
+    stylist_address = StylistAddress.query.filter_by(stylist_id=stylist_id).first()
+    if not stylist_address:
+        abort(404, description=f"Address for stylist with ID {stylist_id} not found")
+
+    stylist_address.street = address_data.get('street', stylist_address.street)
+    stylist_address.city = address_data.get('city', stylist_address.city)
+    stylist_address.state = address_data.get('state', stylist_address.state)
+    stylist_address.zip_code = address_data.get('zip_code', stylist_address.zip_code)
+    stylist_address.country = address_data.get('country', stylist_address.country)
+    stylist_address.comfort_radius = address_data.get('comfort_radius', stylist_address.comfort_radius)
+
+    # Make API request to get longitude and latitude
+    api_key = os.getenv('GMAPS_API_KEY')
+    api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address={stylist_address.street},{stylist_address.city},{stylist_address.state},{stylist_address.zip_code},{stylist_address.country}&key={api_key}'
+    response = requests.get(api_url)
+    api_data = response.json()
+
+    if api_data['status'] == 'OK':
+        result = api_data['results'][0]
+        stylist_address.longitude = result['geometry']['location']['lng']
+        stylist_address.latitude = result['geometry']['location']['lat']
+    else:
+        abort(500, description="Failed to retrieve longitude and latitude from the API")
+
+    try:
+        db.session.commit()
+        return jsonify(message="Stylist address updated successfully", ayo_status="success"), 200
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=str(e))

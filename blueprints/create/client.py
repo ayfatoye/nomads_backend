@@ -168,7 +168,7 @@ SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
 supabase: SupabaseClient = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-@client_bp.route('/signup-client', methods=['POST'])
+@client_bp.route('/signup-user', methods=['POST'])
 def signup_client():
     try:
         data = request.get_json()
@@ -206,7 +206,7 @@ def signup_client():
             'user_uid': None
         }), 400
 
-@client_bp.route('/signin-client', methods=['POST'])
+@client_bp.route('/signin-user', methods=['POST'])
 def signin_client():
     try:
         data = request.get_json()
