@@ -138,8 +138,12 @@ def get_stylists_nearby(client_id):
         Stylist.fname,
         Stylist.lname,
         Stylist.rating,
+        StylistAddress.street,
+        StylistAddress.city,
+        StylistAddress.state,
+        StylistAddress.zip_code,
         StylistAddress.latitude,
-        StylistAddress.longitude,
+        StylistAddress.longitude
     ).join(StylistAddress, Stylist.id == StylistAddress.stylist_id).all()
 
     stylists_output = []
@@ -152,13 +156,15 @@ def get_stylists_nearby(client_id):
         )
         if distance <= client_address.comfort_radius:
             specialties = db.session.query(StylistSpeciality.speciality).filter(StylistSpeciality.stylist_id == stylist.id).all()
-            specialties_list = [specialty.speciality for specialty in specialties]
+            specialties_list = [hair_tags.get(specialty.speciality) for specialty in specialties]
             stylists_output.append({
                 "id": stylist.id,
                 "fname": stylist.fname,
                 "lname": stylist.lname,
-                "latitude": stylist.latitude,
-                "longitude": stylist.longitude,
+                "street": stylist.street,
+                "city": stylist.city,
+                "state": stylist.state,
+                "zip_code": stylist.zip_code,
                 "distance": distance,
                 "rating": stylist.rating,
                 "specialities": specialties_list
@@ -176,7 +182,6 @@ def mina(client_id):
     client_data = get_client_profile(client_id)
     if not isinstance(client_data, dict):
         return jsonify({"error": "Could not retrieve client profile"}), 400
-
 
     # getting the stylists data
     stylists_data = get_stylists_nearby(client_id)
@@ -310,7 +315,6 @@ def update_stylist_address(stylist_id):
     stylist_address.country = address_data.get('country', stylist_address.country)
     stylist_address.comfort_radius = address_data.get('comfort_radius', stylist_address.comfort_radius)
 
-    # Make API request to get longitude and latitude
     api_key = os.getenv('GMAPS_API_KEY')
     api_url = f'https://maps.googleapis.com/maps/api/geocode/json?address={stylist_address.street},{stylist_address.city},{stylist_address.state},{stylist_address.zip_code},{stylist_address.country}&key={api_key}'
     response = requests.get(api_url)
