@@ -156,7 +156,7 @@ def get_stylists_nearby(client_id):
         )
         if distance <= client_address.comfort_radius:
             specialties = db.session.query(StylistSpeciality.speciality).filter(StylistSpeciality.stylist_id == stylist.id).all()
-            specialties_list = [hair_tags.get(specialty.speciality) for specialty in specialties]
+            specialties_list = [(specialty.speciality) for specialty in specialties]
             stylists_output.append({
                 "id": stylist.id,
                 "fname": stylist.fname,
@@ -198,6 +198,8 @@ def mina(client_id):
         for stylist in stylists_data['stylists']:
             match_percentage = decision_tree_comp(stylist, client_data)
             stylist['match_percentage'] = match_percentage
+            specialties_list = [hair_tags.get(specialty, "no corresponding string in hair tags") for specialty in stylist['specialities']]
+            stylist['specialities'] = specialties_list
             stylists_output.append(stylist)
 
     stylists_output_sorted = sorted(stylists_output, key=lambda x: x['match_percentage'], reverse=True)
