@@ -224,10 +224,20 @@ def signin_client():
         session_token = res.session.access_token if res.session else None
 
         if user_id and session_token:
+            uid_to_userid = UidToUserId.query.filter_by(uid=user_id).first()
+    
+            if uid_to_userid:
+                user_type = uid_to_userid.user_type
+                usr_id = uid_to_userid.user_id # actual id on the client or stylist table
+            else:
+                user_type = None
+
             return jsonify({
                 'message': 'Client successfully signed in',
                 'access_token': session_token,
                 'user_uid': user_id,
+                'user_type': user_type,
+                'user_id_in_db': usr_id,
                 'ayo_status': 'success'
             }), 200
         else:
