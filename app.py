@@ -16,18 +16,18 @@ db.init_app(app)
 app.register_blueprint(client_bp, url_prefix='/client')
 app.register_blueprint(stylist_bp, url_prefix='/stylist')
 
-# for development/testing locally
-if __name__ == '__main__':
-    # Create tables
-    with app.app_context():
-        db.create_all()
-        # add_test_table_entry('Hello, this is a test message!')\
-        app.run(debug=True)
-
-# for production/hosting 
+### for development/testing locally
 # if __name__ == '__main__':
+#     # Create tables
 #     with app.app_context():
 #         db.create_all()
-#     app.run(host='0.0.0.0', port=10000)
+#         # add_test_table_entry('Hello, this is a test message!')\
+#         app.run(debug=True)
+
+### for production/hosting 
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', port=10000)
 
 
