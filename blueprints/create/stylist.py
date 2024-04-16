@@ -138,6 +138,7 @@ def get_stylists_nearby(client_id):
         Stylist.fname,
         Stylist.lname,
         Stylist.rating,
+        Stylist.avg_price,
         StylistAddress.street,
         StylistAddress.city,
         StylistAddress.state,
@@ -167,7 +168,8 @@ def get_stylists_nearby(client_id):
                 "zip_code": stylist.zip_code,
                 "distance": distance,
                 "rating": stylist.rating,
-                "specialities": specialties_list
+                "specialities": specialties_list,
+                "avg_price": stylist.avg_price
             })
 
     # just sorting the results by distance
