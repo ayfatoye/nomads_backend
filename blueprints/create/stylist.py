@@ -241,6 +241,7 @@ def get_stylist_profile(stylist_id):
     stylist = Stylist.query.get_or_404(stylist_id)
     stylist_address = StylistAddress.query.filter_by(stylist_id=stylist.id).first()
     stylist_specialities = StylistSpeciality.query.filter_by(stylist_id=stylist.id).all()
+    stylist_contact = StylistContact.query.get(stylist.contacts_id)
 
     stylist_data = {
         'fname': stylist.fname,
@@ -258,7 +259,13 @@ def get_stylist_profile(stylist_id):
             'longitude': stylist_address.longitude,
             'latitude': stylist_address.latitude
         },
-        'specialities': [hair_tags.get(speciality.speciality) for speciality in stylist_specialities]
+        'specialities': [hair_tags.get(speciality.speciality) for speciality in stylist_specialities],
+        'contacts': {
+            'phone_num': stylist_contact.phone_num,
+            'instagram': stylist_contact.instagram,
+            'twitter': stylist_contact.twitter,
+            'linked_tree': stylist_contact.linked_tree
+        }
     }
 
     return jsonify(stylist_data)
